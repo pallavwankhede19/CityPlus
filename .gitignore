@@ -1,0 +1,33 @@
+# Environment
+.env
+.venv/
+venv/
+ENV/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Node
+node_modules/
+backend/node_modules/
+
+# Logs
+*.log
+
+# Large model binaries
+*.pt
+
+# Generated outputs and debug artifacts
+output.txt
+test_output.txt
+test_out_utf8.txt
+debug_*.jpg
+
+# Local media files
+*.mp4
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
