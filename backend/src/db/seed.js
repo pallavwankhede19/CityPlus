@@ -145,20 +145,25 @@ async function seed() {
 
     for (const s of SEED_SIGNALS) {
       const data = JSON.stringify({
-        signals:       s.signals,
-        current_phase: s.phase,
-        cycle_time:    s.cycle,
+        name:            s.name,
+        signals:         s.signals,
+        current_phase:   s.phase,
+        cycle_time:      s.cycle,
       });
 
       await client.query(`
-        INSERT INTO signals (intersection_id, name, location, data, updated_at)
-        VALUES ($1, $2, ST_Point($3, $4)::geography, $5::jsonb, NOW())
+        INSERT INTO signals (intersection_id, location, data, last_updated)
+        VALUES (
+          $1,
+          ST_SetSRID(ST_MakePoint($2, $3), 4326)::geography,
+          $4::jsonb,
+          NOW()
+        )
         ON CONFLICT (intersection_id) DO UPDATE
-          SET name       = EXCLUDED.name,
-              location   = EXCLUDED.location,
-              data       = EXCLUDED.data,
-              updated_at = NOW();
-      `, [s.id, s.name, s.lng, s.lat, data]);
+          SET location     = EXCLUDED.location,
+              data         = EXCLUDED.data,
+              last_updated = NOW();
+      `, [s.id, s.lng, s.lat, data]);
 
       console.log(`  ✔  ${s.id} — ${s.name} (${s.lat}, ${s.lng})`);
     }

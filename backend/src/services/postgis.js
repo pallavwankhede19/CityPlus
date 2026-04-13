@@ -2,8 +2,10 @@
 
 const db = require('../db');
 const { AppError } = require('../utils/errors');
+const logger = require('../utils/logger');
 
-const SEARCH_RADIUS_METERS = Number(process.env.SIGNAL_SEARCH_RADIUS_METRES) || 50;
+const SEARCH_RADIUS_METERS =
+  Number(process.env.SIGNAL_SEARCH_RADIUS_METERS || process.env.SIGNAL_SEARCH_RADIUS_METRES) || 50;
 
 /**
  * Finds signals near a route using ST_DWithin.
@@ -12,21 +14,18 @@ const SEARCH_RADIUS_METERS = Number(process.env.SIGNAL_SEARCH_RADIUS_METRES) || 
  */
 async function getSignalsNearRoute(routeLineStringWkt) {
   const sql = `
+    WITH route AS (
+      SELECT ST_GeomFromText($1, 4326) AS geom
+    )
     SELECT
       s.intersection_id,
       ST_Y(s.location::geometry) AS lat,
       ST_X(s.location::geometry) AS lng,
       s.data,
-      ST_LineLocatePoint(
-        ST_GeomFromText($1, 4326),
-        s.location::geometry
-      ) AS route_fraction
+      ST_LineLocatePoint(route.geom, s.location::geometry) AS route_fraction
     FROM signals s
-    WHERE ST_DWithin(
-      s.location,
-      ST_GeomFromText($1, 4326)::geography,
-      $2
-    )
+    CROSS JOIN route
+    WHERE ST_DWithin(s.location, route.geom::geography, $2)
     ORDER BY route_fraction ASC;
   `;
 
@@ -113,4 +112,92 @@ function extractSignalState(data) {
   };
 }
 
-module.exports = { getSignalsNearRoute, upsertIntersectionData };
+/**
+ * Finds signals along a route within 30m, ordered by position.
+ * @param {string} routeWkt
+ * @returns {Promise<Array>}
+ */
+async function getSignalsAlongRoute(routeWkt) {
+  const sql = `
+    WITH route AS (
+      SELECT ST_GeomFromText($1, 4326) AS geom
+    )
+    SELECT
+      s.intersection_id AS id,
+      s.data AS data,
+      ST_LineLocatePoint(route.geom, s.location::geometry) AS position,
+      ST_Distance(s.location, route.geom::geography) AS distance
+    FROM signals s, route
+    WHERE ST_DWithin(s.location, route.geom::geography, 30)
+    ORDER BY position ASC;
+  `;
+
+  try {
+    logger.debug('PostGIS query start: getSignalsAlongRoute');
+    const { rows } = await db.query(sql, [routeWkt]);
+    logger.debug(`PostGIS query done: getSignalsAlongRoute (rows=${rows.length})`);
+    logger.debug(`PostGIS found ${rows.length} signals within 30m of route`);
+    return rows;
+  } catch (error) {
+    logger.error(`PostGIS error in getSignalsAlongRoute: ${error.message}`);
+    return [];
+  }
+}
+
+async function updateNearestSignalByQueue({ lat, lon, queueLength, state, greenTime }) {
+  const payload = JSON.stringify({
+    state,
+    timer: greenTime,
+    queue_length: queueLength,
+    last_updated: new Date().toISOString(),
+  });
+
+  const sql = `
+    WITH point AS (
+      SELECT ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography AS geom
+    ),
+    within_radius AS (
+      SELECT s.intersection_id
+      FROM signals s
+      CROSS JOIN point p
+      WHERE ST_DWithin(s.location, p.geom, 100)
+      ORDER BY ST_Distance(s.location, p.geom) ASC
+      LIMIT 1
+    ),
+    fallback_nearest AS (
+      SELECT s.intersection_id
+      FROM signals s
+      CROSS JOIN point p
+      ORDER BY ST_Distance(s.location, p.geom) ASC
+      LIMIT 1
+    ),
+    nearest AS (
+      SELECT intersection_id FROM within_radius
+      UNION ALL
+      SELECT intersection_id FROM fallback_nearest
+      WHERE NOT EXISTS (SELECT 1 FROM within_radius)
+      LIMIT 1
+    )
+    UPDATE signals s
+    SET
+      data = $3::jsonb,
+      last_updated = NOW()
+    FROM nearest
+    WHERE s.intersection_id = nearest.intersection_id
+    RETURNING s.intersection_id, s.data;
+  `;
+
+  try {
+    const { rows } = await db.query(sql, [lon, lat, payload]);
+    return rows[0] || null;
+  } catch (error) {
+    throw new AppError(`Database failure while updating nearest signal: ${error.message}`, 500);
+  }
+}
+
+module.exports = {
+  getSignalsNearRoute,
+  upsertIntersectionData,
+  getSignalsAlongRoute,
+  updateNearestSignalByQueue,
+};

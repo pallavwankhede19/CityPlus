@@ -6,39 +6,50 @@ const { getIo } = require('../socket');
 
 async function ingestIntersectionData(req, res, next) {
   try {
-    const { intersection_id, location, signals } = req.body || {};
+    const lat = Number(req.body?.lat);
+    const lon = Number(req.body?.lon);
+    const queueLength = Number(req.body?.queue_length);
 
-    const id = typeof intersection_id === 'string' ? intersection_id.trim() : '';
-    const lat = location?.lat !== undefined ? Number(location.lat) : NaN;
-    const lng = location?.lng !== undefined ? Number(location.lng) : NaN;
-
-    if (!id) {
-      throw new AppError('Invalid input: intersection_id is required.', 400);
+    if (!Number.isFinite(lat) || lat < -90 || lat > 90) {
+      throw new AppError('Invalid input: lat must be a valid latitude.', 400);
     }
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-      throw new AppError('Invalid input: location.lat and location.lng must be numbers.', 400);
+    if (!Number.isFinite(lon) || lon < -180 || lon > 180) {
+      throw new AppError('Invalid input: lon must be a valid longitude.', 400);
     }
-    if (signals === null || signals === undefined || typeof signals !== 'object') {
-      throw new AppError('Invalid input: signals JSON is required.', 400);
+    if (!Number.isFinite(queueLength) || queueLength < 0) {
+      throw new AppError('Invalid input: queue_length must be a non-negative number.', 400);
     }
 
-    await postgisService.upsertIntersectionData({
-      intersection_id: id,
-      location: { lat, lng },
-      signals,
+    const greenTime = (queueLength / 1.8) + 4;
+    const state = queueLength > 5 ? 'RED' : 'GREEN';
+
+    const updated = await postgisService.updateNearestSignalByQueue({
+      lat,
+      lon,
+      queueLength,
+      state,
+      greenTime,
     });
+
+    if (!updated) {
+      throw new AppError('No signals available to update.', 404);
+    }
 
     const io = getIo();
     if (io) {
       io.emit('intersection_update', {
-        intersection_id: id,
-        location: { lat, lng },
-        signals,
+        intersection_id: updated.intersection_id,
+        location: { lat, lon },
+        data: updated.data,
         last_updated: new Date().toISOString(),
       });
     }
 
-    return res.status(200).json({ ok: true });
+    return res.status(200).json({
+      success: true,
+      intersection_id: updated.intersection_id,
+      updated_data: updated.data,
+    });
   } catch (error) {
     return next(error);
   }
