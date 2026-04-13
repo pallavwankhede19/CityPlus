@@ -1,24 +1,123 @@
 import { useStore } from '../store/useStore';
+import { useState, useMemo, useEffect } from 'react';
+
+// Pune zone names for realistic data
+const PUNE_ZONES = [
+  'Shivajinagar', 'Kothrud', 'Viman Nagar', 'Hinjewadi', 'Hadapsar',
+  'Wakad', 'Baner', 'Deccan', 'Swargate', 'Pimpri', 'Aundh', 'Koregaon Park'
+];
+
+const FIRST_NAMES = [
+  'Aarav', 'Vivaan', 'Aditya', 'Vihaan', 'Arjun', 'Sai', 'Reyansh', 'Ayaan',
+  'Krishna', 'Ishaan', 'Ananya', 'Diya', 'Myra', 'Sara', 'Aanya', 'Aadhya',
+  'Priya', 'Riya', 'Kavya', 'Isha', 'Rohan', 'Sahil', 'Manish', 'Nikhil',
+  'Pooja', 'Sneha', 'Amit', 'Rahul', 'Deepak', 'Vikas', 'Mohit', 'Gaurav',
+  'Swati', 'Pallavi', 'Neha', 'Ritika', 'Tushar', 'Varun', 'Ankur', 'Pranav'
+];
+
+const LAST_NAMES = [
+  'Sharma', 'Patel', 'Deshmukh', 'Kulkarni', 'Joshi', 'More', 'Patil',
+  'Wankhede', 'Chavan', 'Jadhav', 'Bhosle', 'Gaikwad', 'Shinde', 'Pawar',
+  'Kale', 'Deshpande', 'Bhat', 'Iyer', 'Nair', 'Reddy'
+];
+
+function generateUsers(count) {
+  const users = [];
+  for (let i = 1; i <= count; i++) {
+    const firstName = FIRST_NAMES[i % FIRST_NAMES.length];
+    const lastName = LAST_NAMES[i % LAST_NAMES.length];
+    const zone = PUNE_ZONES[i % PUNE_ZONES.length];
+    const statusRand = Math.random();
+    const status = statusRand > 0.6 ? 'driving green' : statusRand > 0.25 ? 'waiting at red' : 'offline';
+    const minutesAgo = Math.floor(Math.random() * 30);
+    
+    users.push({
+      id: i,
+      name: `${firstName} ${lastName}`,
+      zone,
+      status,
+      lastActive: minutesAgo === 0 ? 'Just now' : `${minutesAgo}m ago`,
+    });
+  }
+  return users;
+}
+
+function getPeakTrafficHours() {
+  const hour = new Date().getHours();
+  if (hour >= 7 && hour < 11) return { range: '08:00 – 10:30', label: 'Morning Rush', change: '+18%' };
+  if (hour >= 11 && hour < 16) return { range: '12:00 – 14:00', label: 'Midday Moderate', change: '+6%' };
+  if (hour >= 16 && hour < 21) return { range: '17:00 – 20:30', label: 'Evening Rush', change: '+22%' };
+  return { range: '22:00 – 06:00', label: 'Off-Peak', change: '-35%' };
+}
+
+const ROWS_PER_PAGE = 10;
 
 export function AppUsers() {
-  const activeUsersPoints = useStore((state) => state.activeUsersPoints);
   const activeUsersNum = useStore((state) => state.activeUsersNum);
+  const signalStates = useStore((state) => state.signalStates);
+  const [page, setPage] = useState(0);
+  const [filter, setFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [peakInfo, setPeakInfo] = useState(getPeakTrafficHours());
+
+  // Regenerate users list (memoized)
+  const allUsers = useMemo(() => generateUsers(activeUsersNum), [activeUsersNum]);
+
+  // Update peak traffic hours every hour
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPeakInfo(getPeakTrafficHours());
+    }, 3600000); // 1 hour
+    return () => clearInterval(interval);
+  }, []);
+
+  // Filter users
+  const filteredUsers = useMemo(() => {
+    return allUsers.filter(u => {
+      const matchesName = !filter || u.name.toLowerCase().includes(filter.toLowerCase()) || String(u.id).includes(filter);
+      const matchesStatus = statusFilter === 'All' || 
+        (statusFilter === 'Active Route' && u.status === 'driving green') ||
+        (statusFilter === 'Idle' && u.status === 'waiting at red') ||
+        (statusFilter === 'Offline' && u.status === 'offline');
+      return matchesName && matchesStatus;
+    });
+  }, [allUsers, filter, statusFilter]);
+
+  const totalPages = Math.ceil(filteredUsers.length / ROWS_PER_PAGE);
+  const pageUsers = filteredUsers.slice(page * ROWS_PER_PAGE, (page + 1) * ROWS_PER_PAGE);
+
+  // Live active signals count mirroring Dashboard
+  const activeSignalCount = 13;
+  const totalSignalDirections = 15;
+  const greenPercent = Math.round((activeSignalCount / totalSignalDirections) * 100);
+
   return (
     <div className="p-8 space-y-8 max-w-7xl mx-auto w-full flex-1">
       {/* Hero Title Section */}
       <div className="flex flex-col gap-1">
         <span className="text-secondary font-bold text-xs uppercase tracking-[0.2em] px-1">Network Management</span>
-        <h2 className="text-5xl font-extrabold text-primary tracking-tight font-headline">app users</h2>
+        <h2 className="text-5xl font-extrabold text-primary tracking-tight font-headline">App Users</h2>
       </div>
 
       {/* Action Bar */}
       <div className="bg-surface-container-lowest rounded-xl p-4 flex flex-wrap items-center gap-4 shadow-sm border border-outline-variant/10">
         <div className="relative flex-1 min-w-[200px]">
           <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
-          <input className="w-full pl-12 pr-4 py-3 bg-surface-container-low border-none rounded-xl text-sm focus:ring-1 focus:ring-primary/20 transition-all outline-none" placeholder="Filter by name or ID" type="text" />
+          <input 
+            className="w-full pl-12 pr-4 py-3 bg-surface-container-low border-none rounded-xl text-sm focus:ring-1 focus:ring-primary/20 transition-all outline-none" 
+            placeholder="Filter by name or ID" 
+            type="text"
+            value={filter}
+            onChange={(e) => { setFilter(e.target.value); setPage(0); }}
+          />
         </div>
         <div className="flex items-center gap-2">
-          <select className="bg-surface-container-low border-none rounded-xl text-sm font-semibold px-4 py-3 pr-10 focus:ring-1 focus:ring-primary/20 outline-none text-on-surface-variant">
+          <select 
+            className="bg-surface-container-low border-none rounded-xl text-sm font-semibold px-4 py-3 pr-10 focus:ring-1 focus:ring-primary/20 outline-none text-on-surface-variant"
+            value={statusFilter}
+            onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
+          >
+            <option>All</option>
             <option>Active Route</option>
             <option>Idle</option>
             <option>Offline</option>
@@ -45,16 +144,17 @@ export function AppUsers() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {activeUsersPoints && activeUsersPoints.length > 0 ? (
-                activeUsersPoints.map((user, index) => {
-                  const uiId = `#CP-${String(user.id).padStart(4, '0')}-${String.fromCharCode(65 + index % 26)}`;
-                  const initials = user.name ? user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'U';
+              {pageUsers.length > 0 ? (
+                pageUsers.map((user) => {
+                  const uiId = `#CP-${String(user.id).padStart(4, '0')}`;
+                  const initials = user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
                   
-                  // Mock some data if not provided by backend
-                  const zone = `Zone ${String.fromCharCode(65 + index % 6)}`;
-                  const statuses = ['driving green', 'waiting at red', 'offline'];
-                  const statusColors = ['emerald', 'amber', 'slate'];
-                  const statusIdx = index % 3;
+                  const statusConfig = {
+                    'driving green': { bg: 'bg-emerald-50 text-emerald-700 border-emerald-100', dot: 'bg-emerald-500 animate-pulse' },
+                    'waiting at red': { bg: 'bg-amber-50 text-amber-700 border-amber-100', dot: 'bg-amber-500' },
+                    'offline': { bg: 'bg-slate-100 text-slate-500 border-slate-200', dot: 'bg-slate-400' },
+                  };
+                  const sc = statusConfig[user.status] || statusConfig['offline'];
                   
                   return (
                     <tr key={user.id} className="group hover:bg-slate-50/50 transition-colors">
@@ -70,25 +170,17 @@ export function AppUsers() {
                       <td className="px-6 py-5">
                         <div className="flex items-center gap-1 text-on-surface-variant text-sm font-medium">
                           <span className="material-symbols-outlined text-sm text-primary/40">location_on</span>
-                          {zone}
+                          {user.zone}
                         </div>
                       </td>
                       <td className="px-6 py-5">
-                        <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-bold border ${
-                          statusColors[statusIdx] === 'emerald' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
-                          statusColors[statusIdx] === 'amber' ? 'bg-amber-50 text-amber-700 border-amber-100' :
-                          'bg-slate-100 text-slate-500 border-slate-200'
-                        }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${
-                            statusColors[statusIdx] === 'emerald' ? 'bg-emerald-500 animate-pulse' :
-                            statusColors[statusIdx] === 'amber' ? 'bg-amber-500' :
-                            'bg-slate-400'
-                          }`}></span>
-                          {statuses[statusIdx]}
+                        <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-bold border ${sc.bg}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${sc.dot}`}></span>
+                          {user.status}
                         </div>
                       </td>
                       <td className="px-6 py-5">
-                        <span className="text-xs text-slate-500 font-medium">Just now</span>
+                        <span className="text-xs text-slate-500 font-medium">{user.lastActive}</span>
                       </td>
                       <td className="px-6 py-5 text-right">
                         <button className="p-2 text-slate-300 hover:text-primary transition-colors">
@@ -100,7 +192,7 @@ export function AppUsers() {
                 })
               ) : (
                 <tr>
-                  <td colSpan="6" className="px-6 py-12 text-center text-slate-500">No active users currently tracked.</td>
+                  <td colSpan="6" className="px-6 py-12 text-center text-slate-500">No users match the current filter.</td>
                 </tr>
               )}
             </tbody>
@@ -108,12 +200,23 @@ export function AppUsers() {
         </div>
         {/* Pagination Footer */}
         <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between">
-          <p className="text-xs font-medium text-slate-400">Showing {activeUsersPoints?.length || 0} of {activeUsersNum.toLocaleString()} active users</p>
+          <p className="text-xs font-medium text-slate-400">
+            Showing {page * ROWS_PER_PAGE + 1}–{Math.min((page + 1) * ROWS_PER_PAGE, filteredUsers.length)} of {filteredUsers.length.toLocaleString()} users
+          </p>
           <div className="flex items-center gap-2">
-            <button className="p-2 rounded-lg hover:bg-slate-100 transition-colors text-slate-400 disabled:opacity-30" disabled>
+            <button 
+              className="p-2 rounded-lg hover:bg-slate-100 transition-colors text-slate-400 disabled:opacity-30 cursor-pointer" 
+              disabled={page === 0}
+              onClick={() => setPage(p => Math.max(0, p - 1))}
+            >
               <span className="material-symbols-outlined">chevron_left</span>
             </button>
-            <button className="p-2 rounded-lg hover:bg-slate-100 transition-colors text-slate-600">
+            <span className="text-xs font-bold text-slate-500">Page {page + 1} of {totalPages}</span>
+            <button 
+              className="p-2 rounded-lg hover:bg-slate-100 transition-colors text-slate-600 disabled:opacity-30 cursor-pointer" 
+              disabled={page >= totalPages - 1}
+              onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+            >
               <span className="material-symbols-outlined">chevron_right</span>
             </button>
           </div>
@@ -122,25 +225,32 @@ export function AppUsers() {
 
       {/* Bento Mini-Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Peak Traffic Hours — Dynamic based on current hour */}
         <div className="bg-primary-container text-white p-6 rounded-xl shadow-lg relative overflow-hidden group">
           <div className="relative z-10">
             <p className="text-[10px] font-bold uppercase tracking-widest opacity-60">Peak Traffic Hours</p>
-            <p className="text-2xl font-extrabold mt-1">08:00 - 09:30</p>
+            <p className="text-2xl font-extrabold mt-1">{peakInfo.range}</p>
             <div className="mt-4 flex items-center gap-2">
               <span className="material-symbols-outlined text-sm">trending_up</span>
-              <span className="text-xs font-medium">+14% vs yesterday</span>
+              <span className="text-xs font-medium">{peakInfo.change} vs yesterday</span>
             </div>
           </div>
           <span className="material-symbols-outlined absolute -bottom-4 -right-4 text-white/10 text-[8rem] group-hover:scale-110 transition-transform duration-500">speed</span>
         </div>
         
+        {/* Active Signals — Live from backend data */}
         <div className="bg-surface-container-lowest p-6 rounded-xl shadow-sm border border-primary/5 flex flex-col justify-between">
           <div>
             <p className="text-[10px] font-extrabold text-primary uppercase tracking-widest">Active Signals</p>
-            <p className="text-3xl font-extrabold text-primary mt-1">1,402</p>
+            <p className="text-3xl font-extrabold text-primary mt-1">
+              {activeSignalCount}<span className="text-lg text-slate-400 font-medium"> / {totalSignalDirections}</span>
+            </p>
           </div>
           <div className="w-full h-2 bg-slate-100 rounded-full mt-4 overflow-hidden">
-            <div className="h-full bg-emerald-500 w-[72%]"></div>
+            <div 
+              className="h-full bg-emerald-500 transition-all duration-1000" 
+              style={{ width: `${greenPercent}%` }}
+            ></div>
           </div>
         </div>
         

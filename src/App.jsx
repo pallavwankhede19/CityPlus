@@ -1,15 +1,17 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { useSocketConnection } from './hooks/useSocket';
+import { useSimulation } from './hooks/useSimulation';
 import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { AppUsers } from './pages/AppUsers';
 import { TrafficLogs } from './pages/TrafficLogs';
 import { Settings } from './pages/Settings';
+import { AITrafficHubPage } from './pages/AITrafficHubPage';
 
 function AppContent() {
-  // Initialize Socket.io connection and sync with Zustand inside the Router context
-  // or at least inside a component so hooks can work if they depend on context later.
   useSocketConnection();
+  useSimulation(); // Live demo simulation when backend is offline
+
 
   return (
     <Routes>
@@ -20,6 +22,8 @@ function AppContent() {
         <Route path="users" element={<AppUsers />} />
         {/* Traffic Logs & Analytics */}
         <Route path="logs" element={<TrafficLogs />} />
+        {/* AI Traffic Hub */}
+        <Route path="ai-hub" element={<AITrafficHubPage />} />
         {/* System Settings */}
         <Route path="settings" element={<Settings />} />
       </Route>

@@ -16,7 +16,7 @@ export function TrafficLogs() {
     <div className="p-8 space-y-8 max-w-7xl mx-auto w-full flex-1">
       {/* Page Header */}
       <div className="flex flex-col gap-1">
-        <h1 className="text-4xl font-bold tracking-tight text-primary">traffic logs</h1>
+        <h1 className="text-4xl font-bold tracking-tight text-primary">Traffic Logs</h1>
         <p className="text-on-surface-variant/70 text-sm">Real-time signal diagnostics and urban mobility audit trail.</p>
       </div>
 

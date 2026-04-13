@@ -24,7 +24,7 @@ export function MapCard() {
             <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
               <Map
                 defaultZoom={13}
-                defaultCenter={{ lat: 40.7128, lng: -74.0060 }}
+                defaultCenter={{ lat: 18.5204, lng: 73.8567 }}
                 mapId="DEMO_MAP_ID"
                 gestureHandling={'greedy'}
                 disableDefaultUI={true}
@@ -48,7 +48,7 @@ export function MapCard() {
         <div className="absolute top-6 left-6 z-30 pointer-events-none">
           <div className="bg-white/90 backdrop-blur px-4 py-3 rounded-xl shadow-lg border border-white/50 flex items-center gap-3">
             <span className="material-symbols-outlined text-emerald-600">explore</span>
-            <span className="text-sm font-bold text-slate-700">Central Business District</span>
+            <span className="text-sm font-bold text-slate-700">Shivajinagar District</span>
           </div>
         </div>
         
