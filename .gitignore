@@ -1,36 +1,42 @@
 # ==========================================
-# CityPulse Master Git Ignore (Professional)
+# 🛡️ CITYPULSE MASTER SECURITY GIT-IGNORE
 # ==========================================
 
-# --- Environment & Credentials (CRITICAL) ---
+# ------------------------------------------
+# METHOD 1: EXPLICIT EXACT PATHING
+# (Targeting exactly where we know the files are)
+# ------------------------------------------
+/CityPulse/.env
+/CityPulse/server/.env
+/CityPulse/mobile/.env
+/CityPulse/voice_gateway/.env
+/CityPulse/mobile/android/local.properties
+/CityPulse/mobile/android/key.properties
+/CityPulse/mobile/ios/Runner/secret.plist
+
+# ------------------------------------------
+# METHOD 2: THE WILDCARD "CATCH-ALL"
+# (A backup net just in case files move around)
+# ------------------------------------------
 **/.env
 **/.env.*
 **/local.properties
 **/*.keystore
-**/*.jks
-**/*.properties
 **/auth_key.json
 
-# --- Subfolders / Build Junk ---
+# ------------------------------------------
+# JUNK CACHE & BUILD FOLDERS
+# ------------------------------------------
 **/node_modules/
 **/build/
 **/.dart_tool/
-**/.flutter-plugins
 **/.pub-cache/
 **/__pycache__/
-**/*.py[cod]
-**/.idea/
-**/.vscode/
 
-# --- Large Binaries & Assets ---
+# ------------------------------------------
+# HUGE ASSETS (To prevent Git from crashing)
+# ------------------------------------------
 **/shared/models/*.pt
 **/shared/models/*.onnx
 **/*.wav
 **/*.mp4
-**/*.exe
-
-# --- OS / Logs ---
-.DS_Store
-Thumbs.db
-*.log
-output.txt
