@@ -1,0 +1,36 @@
+# ==========================================
+# CityPulse Master Git Ignore (Professional)
+# ==========================================
+
+# --- Environment & Credentials (CRITICAL) ---
+**/.env
+**/.env.*
+**/local.properties
+**/*.keystore
+**/*.jks
+**/*.properties
+**/auth_key.json
+
+# --- Subfolders / Build Junk ---
+**/node_modules/
+**/build/
+**/.dart_tool/
+**/.flutter-plugins
+**/.pub-cache/
+**/__pycache__/
+**/*.py[cod]
+**/.idea/
+**/.vscode/
+
+# --- Large Binaries & Assets ---
+**/shared/models/*.pt
+**/shared/models/*.onnx
+**/*.wav
+**/*.mp4
+**/*.exe
+
+# --- OS / Logs ---
+.DS_Store
+Thumbs.db
+*.log
+output.txt
