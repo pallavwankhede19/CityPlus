@@ -12,7 +12,7 @@ import 'services/assistant_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: ".env");
+  await dotenv.load(fileName: "../.env");
   runApp(
     MultiProvider(
       providers: [
