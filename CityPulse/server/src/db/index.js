@@ -4,7 +4,7 @@ const path = require('path');
 const { Pool } = require('pg');
 const logger = require('../utils/logger');
 
-require('dotenv').config({ path: path.join(__dirname, '../../.env') });
+require('dotenv').config({ path: path.join(__dirname, '../../.env'), override: true });
 
 let pool;
 let hasLoggedPoolCreation = false;
