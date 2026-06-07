@@ -1,4 +1,4 @@
-# 🚦 CityPlus: Intelligent Navigation & Assistant
+# 🚦 CityPluse: Intelligent Navigation & Assistant
 
 Welcome to **CityPulse**! This is a modern, real-time traffic signal navigation engine built to make driving in the city seamless. It transforms standard map navigation into a predictive, highly intelligent driving experience by connecting to live traffic data.
 
